@@ -1,0 +1,15 @@
+{
+  "name": "schema-patch-benchmark",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node src/benchmark.mjs",
+    "bench:bad": "node experiments/bad-mode.mjs",
+    "bench:inspect": "node experiments/inspect.mjs"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.8",
+    "msgpackr": "^2.0.1"
+  }
+}

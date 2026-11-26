@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>2000 人横坐标迁移 — 序列化基准</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
+  h1 { font-size: 1.25rem; }
+  .canvas-wrap { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+  svg { display: block; }
+  .dot-first { fill: #2563eb; }
+  .dot-last  { fill: #dc2626; }
+  .label { font-size: 13px; fill: #1a1a1a; }
+  .axis { stroke: #999; stroke-width: 1; }
+  table { border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+  th, td { border: 1px solid #ccc; padding: 0.4rem 0.7rem; text-align: left; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.pass .tag { color: #15803d; font-weight: 700; }
+  tr.fail .tag { color: #b91c1c; font-weight: 700; }
+  tr.ref { color: #777; }
+  code { background: #f3f4f6; padding: 0.1rem 0.35rem; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>地图预览（只画第一个和最后一个点；共 2000 人，纵坐标全程 20）</h1>
+  <div class="canvas-wrap">
+    <svg width="640" height="300" viewBox="0 0 640 300" role="img" aria-label="first and last player coordinates">
+      <line class="axis" x1="60" y1="250" x2="600" y2="250" />
+      <line class="axis" x1="60" y1="250" x2="60"  y2="30" />
+      <text class="label" x="590" y="270">x</text>
+      <text class="label" x="30"  y="40">y</text>
+      <!-- x grid 0..20, y grid 0..30 -->
+      <line class="axis" x1="60" y1="250" x2="60" y2="255" />
+        <text class="label" x="54" y="270">0</text><line class="axis" x1="195" y1="250" x2="195" y2="255" />
+        <text class="label" x="189" y="270">5</text><line class="axis" x1="330" y1="250" x2="330" y2="255" />
+        <text class="label" x="324" y="270">10</text><line class="axis" x1="465" y1="250" x2="465" y2="255" />
+        <text class="label" x="459" y="270">15</text><line class="axis" x1="600" y1="250" x2="600" y2="255" />
+        <text class="label" x="594" y="270">20</text>
+      <line class="axis" x1="55" y1="250" x2="60" y2="250" />
+        <text class="label" x="28" y="254">0</text><line class="axis" x1="55" y1="176.66666666666669" x2="60" y2="176.66666666666669" />
+        <text class="label" x="28" y="180.66666666666669">10</text><line class="axis" x1="55" y1="103.33333333333334" x2="60" y2="103.33333333333334" />
+        <text class="label" x="28" y="107.33333333333334">20</text><line class="axis" x1="55" y1="30" x2="60" y2="30" />
+        <text class="label" x="28" y="34">30</text>
+      <!-- both players end at (15, 20); offset slightly so both labels are visible -->
+      <circle class="dot-first" cx="459" cy="103.33333333333334" r="6" />
+      <text class="label" x="315" y="91.33333333333334">
+        第 1 人 player[0] = (15, 20)
+      </text>
+      <circle class="dot-last" cx="471" cy="103.33333333333334" r="6" />
+      <text class="label" x="481" y="107.33333333333334">
+        最后一人 player[1999] = (15, 20)
+      </text>
+      <!-- faint ghost of the starting position (10, 20) -->
+      <circle cx="330" cy="103.33333333333334" r="4"
+              fill="none" stroke="#9ca3af" stroke-dasharray="3 3" />
+      <text class="label" x="260" y="125.33333333333334" fill="#6b7280">
+        起点 (10, 20)
+      </text>
+    </svg>
+  </div>
+
+  <h1>终端指标（仅计整包同步之后的 2000 次横坐标修改；字节按实际发出长度统计，256KB 缓冲未用部分不计）</h1>
+  <table>
+    <thead>
+      <tr><th>方案</th><th>包数</th><th>发出字节</th><th>编码 ms</th><th>解码 ms</th><th>合计 ms</th><th>结果</th></tr>
+    </thead>
+    <tbody>
+      <tr class="pass">
+        <td>A. one delta packet per person (2000 packets)</td>
+        <td class="num">2000</td>
+        <td class="num">11,620</td>
+        <td class="num">1.7</td>
+        <td class="num">1.5</td>
+        <td class="num">3.2</td>
+        <td class="tag">PASS</td>
+      </tr>
+      <tr class="pass">
+        <td>B. all changes coalesced into one packet (1 packet)</td>
+        <td class="num">1</td>
+        <td class="num">11,620</td>
+        <td class="num">0.2</td>
+        <td class="num">0.6</td>
+        <td class="num">0.8</td>
+        <td class="tag">PASS</td>
+      </tr>
+      <tr class="ref">
+        <td>REF. full snapshot re-encoded per change (the reported failure)</td>
+        <td class="num">2000</td>
+        <td class="num">75,500,000</td>
+        <td class="num">2057.7</td>
+        <td class="num">3349.9</td>
+        <td class="num">5407.6</td>
+        <td class="tag">reference</td>
+      </tr></tbody>
+  </table>
+  <p>预算：编码+解码 ≤ <code>400 ms</code>，总字节 &lt; <code>200,000</code>。
+     方案 A 首包解完：<code>player[0].x = 15</code>，其余仍为 <code>10</code>；
+     全部解完：所有人 x = <code>15</code>，y = <code>20</code>。
+     参考模式每人发整包快照（37750 B/包 × 2000 =
+     75,500,000 B）即题目描述的失败形态。</p>
+</body>
+</html>
